@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -21,25 +22,33 @@ func (ac *AuthController) Register(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot parse JSON"})
 	}
 
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 14)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not create user"})
+	}
 	user.Password = string(hashedPassword)
 
 	if err := ac.Repo.CreateUser(user); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not create user"})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(user)
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": fmt.Sprintf("Successfully created user %s", user.Username)})
 }
 
 func (ac *AuthController) Login(c *fiber.Ctx) error {
-	user := new(models.User)
+	authPayload := new(models.AuthPayload)
 
-	if err := c.BodyParser(user); err != nil {
+	if err := c.BodyParser(authPayload); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot parse JSON"})
 	}
 
-	dbUser, err := ac.Repo.FindUserByEmail(user.Email)
-	if err != nil || bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(user.Password)) != nil {
+	dbUser, err := ac.Repo.FindUserByEmail(authPayload.Email)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "User is not registered"})
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(authPayload.Password))
+	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid credentials"})
 	}
 
@@ -65,5 +74,5 @@ func (ac *AuthController) Login(c *fiber.Ctx) error {
 
 	c.Cookie(&cookie)
 
-	return c.JSON(fiber.Map{"message": "success"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Login successful"})
 }
