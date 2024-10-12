@@ -29,10 +29,15 @@ type User struct {
 	ID               uint   `gorm:"primaryKey" json:"id"`
 	Email            string `gorm:"unique;not null" json:"email"`
 	Username         string `gorm:"unique;not null" json:"username"`
-	Password         string `gorm:"not null" json:"-"`
+	Password         string `gorm:"not null" json:"password"`
 	Address          string `gorm:"not null" json:"address"`
 	Age              int    `gorm:"not null" json:"age"`
 	Gender           string `gorm:"not null" json:"gender"`
 	Designation      string `gorm:"not null" json:"designation"`
 	NationalIDNumber string `gorm:"not null" json:"national_id_number"`
+}
+
+type AuthPayload struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
